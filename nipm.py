@@ -341,16 +341,13 @@ def cleanup_network_processes():
     logger.info("Cleaning up network processes")
     wpa_manager.stop_all()
 
-    subprocess.run(["killall", "wpa_supplicant"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    subprocess.run(["killall", "dhcpcd"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    #subprocess.run(["killall", "wpa_supplicant"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    #subprocess.run(["killall", "dhcpcd"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-    """    
     subprocess.run(["pkill", "-9", "wpa_supplicant"], 
                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    
     subprocess.run(["pkill", "-9", "dhcpcd"], 
                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    """
 
 def _check_association(ifname: str) -> bool:
     try:
