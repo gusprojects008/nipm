@@ -1,1 +1,7 @@
-salvar endereços IP utilzados anteriomente, para realizar a configuração deles.
+Caso houvesse uma interface gráfica, seria necessário adapatar as funções do programa para serem assíncronas.
+Melhorar logs.
+Poderia utilizar mensagem de PING para o serviço wpa_supplicant, e esperar PONG para confirmar que ele estáa ativo.
+
+Melhorias futuras e possíveis funcionalidades:
+Fornecer interface TUI simples para gerenciamento de rede. O usuário poderá editar arquivos de configurações e definir modos de interface diretamente pela interface TUI.
+Talvez ele poderá realizar um scan pela interface selecionada, e o resultado será exibido diretamente na interface TUI, e selecionar uma rede que quer se conectar.
