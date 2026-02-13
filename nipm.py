@@ -23,7 +23,6 @@ logger = logging.getLogger(__name__)
 dependencies = ['wpa_supplicant', 'dhcpcd', 'iw', 'ip']
 service_timeout = 30
 process_timeout = 5
-DNS_PORT = 53
 
 def check_root_privilegies():
     if os.getuid() != 0:
