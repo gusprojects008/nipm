@@ -1,7 +1,17 @@
-Caso houvesse uma interface gráfica, seria necessário adapatar as funções do programa para serem assíncronas.
-Melhorar logs.
+Melhorar logs e colorir eles.
 Poderia utilizar mensagem de PING para o serviço wpa_supplicant, e esperar PONG para confirmar que ele estáa ativo.
 
 Melhorias futuras e possíveis funcionalidades:
-Fornecer interface TUI simples para gerenciamento de rede. O usuário poderá editar arquivos de configurações e definir modos de interface diretamente pela interface TUI.
-Talvez ele poderá realizar um scan pela interface selecionada, e o resultado será exibido diretamente na interface TUI, e selecionar uma rede que quer se conectar.
+Fornecer TUI simples para gerenciamento de rede. O usuário poderá editar arquivos de configurações e definir modos de interface diretamente pela TUI.
+Talvez ele poderá realizar um scan pela interface selecionada, e o resultado será exibido diretamente na TUI, e selecionar uma rede que ele quer se conectar.
+
+Lembretes:
+Caso houvesse uma interface gráfica, seria necessário adapatar as funções do programa para serem assíncronas.
+Poderia utilizar mensagem de PING para o serviço wpa_supplicant, e esperar PONG para confirmar que ele estáa ativo.
+
+Principais alterações e melhorias:
+Mensagens de logs inúteis removidas.
+Foi adicionado hisorico de prompts para criação de perfis e automplete de nomes de interface.
+Utilizando sockets UNIX para aguardar eventos que indicam a inicialização e conexão com a rede wifi através do wpa_supplicant. 
+Encerrando serviços wpa_supplicant e dhcpcd apenas para o usuário real que está executando o programa.
+Checando apenas se a interface está funcionando e com endereços IPV4 configurados.

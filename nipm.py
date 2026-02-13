@@ -13,9 +13,10 @@ import getpass
 import pwd
 import argparse
 import hashlib
-import signal
 import logging
 from typing import Dict, List, Any, Tuple, Optional
+import readline
+import atexit
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -25,13 +26,11 @@ process_timeout = 5
 DNS_PORT = 53
 
 def check_root_privilegies():
-    logger.info("Checking privilegies...")
     if os.getuid() != 0:
         error = f"This program requires administrator privileges! Run with sudo:\nsudo {sys.executable} {Path(__file__).resolve()} {' '.join(sys.argv[1:]) if len(sys.argv) > 1 else ''}"
         raise PermissionError(error)
 
 def check_dependencies(dependencies):
-    logger.info("Checking dependencies...")
     for dependency in dependencies:
         if not shutil.which(dependency):
             raise FileNotFoundError(f"{dependency} not found. Install it and try again...")
@@ -68,7 +67,6 @@ def check_interface_ipv4(ifname: str) -> bool:
          ["ip", "-4", "addr", "show", "dev", ifname],
          stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, check=True, text=True
        )
-       #return check_active_interface(ifname) and "inet " in result.stdout
        return "inet " in result.stdout
     except Exception:
        return False
@@ -89,25 +87,6 @@ def check_default_gateway(ifname: str) -> bool:
         pass
     return False
 
-def dns_servers_reachable(ifname: str) -> bool:
-    try:
-        content = Path("/etc/resolv.conf").read_text()
-        servers = re.findall(r"nameserver\s+([\d.]+)", content)
-
-        for server in servers:
-            try:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.setsockopt(socket.SOL_SOCKET, socket.SO_BINDTODEVICE, ifname.encode())
-                sock.settimeout(process_timeout)
-                sock.connect((server, DNS_PORT))
-                sock.close()
-                return True
-            except Exception:
-                continue
-        return False
-    except Exception:
-        return False
-
 def interface_working(ifname: str) -> bool:
     logger.info(f"Checking if {ifname} is working ...")
     return all([
@@ -117,19 +96,11 @@ def interface_working(ifname: str) -> bool:
         check_default_gateway(ifname)
     ])
     
-def check_connection(ifname) -> bool:
-    logger.info(f"Checking internet connection for {ifname} ...")
-    return all([
-      dns_servers_reachable(ifname)
-    ]) 
-    
 def set_interface_down(ifname: str) -> bool:
     logger.info(f"Bringing interface {ifname} down...")
     try:
         subprocess.run(["ip", "link", "set", ifname, "down"], check=True, 
                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        #subprocess.run(["ip", "addr", "flush", "dev", ifname], check=True, 
-         #             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         logger.info(f"Interface {ifname} is down.")
         return True
     except subprocess.CalledProcessError as error:
@@ -156,7 +127,6 @@ def restart_interface(ifname: str) -> bool:
         return False
 
 def get_mac_address(ifname: str) -> str:
-    logger.info(f"Getting MAC address from {ifname} ...")
     try:
         path = Path(f"/sys/class/net/{ifname}/address")
         return path.read_text().strip()
@@ -524,7 +494,6 @@ def start_dhcpcd_and_wait(manager: DHCPCDProcessManager, ifname: str, profile_da
 def connection(profile: Tuple[str, Dict[str, Any]], wpa_manager, dhcpcd_manager) -> bool:
     ifname, p = profile
     is_wireless = p["type"] == "wireless"
-    #restart_interface(ifname)
     success = (
         start_wpa_and_wait(wpa_manager, ifname, p)
         and start_dhcpcd_and_wait(dhcpcd_manager, ifname, p)
@@ -575,7 +544,7 @@ def start(profiles: List[Tuple[str, Dict[str, Any]]], background: bool, sleep_ti
                     active_ifname = None
 
             elif active_ifname:
-                if not (interface_working(active_ifname) and check_connection(active_ifname)):
+                if not interface_working(active_ifname):
                     logger.warning(f"Connection on {active_ifname} seems down, reconnecting...")
                     current_profile = next(p for i, p in profiles if i == active_ifname)
                     if not connection((active_ifname, current_profile), wpa_manager, dhcpcd_manager):
@@ -589,7 +558,7 @@ def start(profiles: List[Tuple[str, Dict[str, Any]]], background: bool, sleep_ti
     finally:
        cleanup_network_processes(real_user, wpa_manager, dhcpcd_manager)
        if active_ifname:
-           set_interface_down(active_ifname)
+           restart_interface(active_ifname)
        logger.info("Cleaned up all connections.")
 
 def scan(ifname: str, output_filename: str = None):
@@ -698,11 +667,37 @@ def list_interfaces() -> List[str]:
             logger.warning("No network interfaces found.")
         if interfaces:
             print("Available interfaces:")
-            for iface in interfaces:
-                print(f" - {iface}")
+            for ifname in interfaces:
+                print(f" - {ifname} {get_mac_address(ifname)}")
     except Exception as error:
         logger.error(f"Failed to list system interfaces: {error}")
         return []
+
+class HistoryManager:
+    def __init__(self, namespace: str = "global"):
+        self.namespace = namespace
+        self.histfile = Path.home() / ".config" / "nipm" / f".history_{namespace}"
+        self.histfile.parent.mkdir(parents=True, exist_ok=True)
+        self._setup_readline()
+    
+    def _setup_readline(self):
+        try:
+            readline.read_history_file(self.histfile)
+        except FileNotFoundError:
+            pass
+        readline.set_history_length(1000)
+        readline.set_completer(self.interface_completer)
+        readline.parse_and_bind("tab: complete")
+        atexit.register(readline.write_history_file, self.histfile)
+        self.readline_available = True
+    
+    def input(self, prompt_text: str) -> str:
+        return input(prompt_text).strip()
+
+    def interface_completer(self, text, state):
+        interfaces = [iface.name for iface in Path("/sys/class/net").iterdir() if iface.is_dir()]
+        matches = [i for i in interfaces if i.startswith(text)]
+        return matches[state] if state < len(matches) else None
 
 def main():
     check_root_privilegies()
@@ -732,7 +727,7 @@ def main():
 
     start_parser = subparsers.add_parser("start", help="Connect to a network.")
     start_parser.add_argument("-b", "--background", action="store_true", help="Run in monitoring mode with failover and failback.")
-    start_parser.add_argument("-s", "--sleep", type=int, default=4, help="Time to next interface check (seconds, default = 6)")
+    start_parser.add_argument("-s", "--sleep", type=int, default=8, help="Time to next interface check (seconds, default = 6)")
 
     scan_parser = subparsers.add_parser("scan", help="Scan for wireless networks.")
     scan_parser.add_argument("ifname", type=str, help="The wireless interface to use for scanning.")
@@ -749,15 +744,27 @@ def main():
         scan(args.ifname, args.output)
     elif args.command == "create-profile":
         list_interfaces()
-        ifname = input("Network Interface Name (e.g. wlan0, enp0s3): ").strip()
-        if not ifname: raise ValueError("Interface name cannot be empty.")
-        metric_val = input("Metric (default: 100): ").strip()
+
+        hist_iface = HistoryManager("iface")
+        hist_metric = HistoryManager("metric")
+        hist_ssid = HistoryManager("ssid")
+        
+        ifname = hist_iface.input("Network Interface Name (e.g. wlan0, enp0s3): ")
+        if not ifname: 
+            raise ValueError("Interface name cannot be empty.")
+        
+        metric_val = hist_metric.input("Metric (default: 100): ")
         metric = int(metric_val) if metric_val else 100
+        
         if is_wireless(ifname):
-            ssid = input("Network SSID: ").strip()
-            if not ssid: raise ValueError("SSID cannot be empty.")
+            ssid = hist_ssid.input("Network SSID: ")
+            if not ssid: 
+                raise ValueError("SSID cannot be empty.")
+            
             psk = getpass.getpass("Network Password (8-63 chars): ")
-            if not psk: raise ValueError("Password cannot be empty.")
+            if not psk: 
+                raise ValueError("Password cannot be empty.")
+            
             temp_profile = {"metric": metric, "ssid": ssid, "psk": psk}
             valid_profile = validate_interface_profile_data(CONFIG_DIR, ifname, temp_profile)
             profiles_manager.create_profile(ifname, valid_profile)

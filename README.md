@@ -1,18 +1,20 @@
 # Network Interface Profile Manager (NIPM)
 
 NIPM (Network Interface Profile Manager) is a CLI tool for Linux that allows you to manage network interfaces and their connections (Wi-Fi or Ethernet) through profiles.
-It supports the creation, maintenance, and automatic switching between network profiles dynamically and securely, without relying on a resident daemon, offering greater control and flexibility over interfaces.
+It supports the creation, maintenance, and automatic switching between network profiles in a dynamic and secure way, without relying on a resident daemon, providing greater control and flexibility over interfaces.
 
 ---
 
 ## Overview
 
-**NIPM** works directly with the standard Linux networking tools:
+**NIPM** works directly with standard Linux networking tools:
 
-* [`dhcpcd.conf`](https://wiki.archlinux.org/title/Dhcpcd)
-* [`wpa_supplicant.conf`](https://wiki.archlinux.org/title/Wpa_supplicant)
+* dhcpcd
+* wpa_supplicant
+* iw
+* ip
 
-It automates the creation and updating of these configuration files, ensuring compliance with the official syntax and reducing manual errors.
+It automates the creation and updating of these configuration files, ensuring compliance with official syntax and reducing manual errors.
 
 NIPM prioritizes network interfaces based on user-defined metrics and automatically reconnects in case of failure, ensuring a reliable connection experience.
 
@@ -20,11 +22,12 @@ NIPM prioritizes network interfaces based on user-defined metrics and automatica
 
 ## Main Features
 
-* **Profile creation and updating**: With the `create-profile` command, you can define the SSID, password (PSK), and priority (metric) for each interface. The lower the interface's metric, the higher its priority.
-* **Centralized management**: Keeps all settings organized in the user profile directory (`~/.config/nipm`), which is only accessible with root permissions for security reasons.
-* **Multiple interface support**: Dynamically switches between active interfaces, always maintaining the priority connection.
-* **Continuous monitoring**: Background mode (`-b`) checks interface availability and automatically reconnects in case of failure. You can also set the time for each check using the option (`-s`) and then the value in seconds. * **Easy profile removal**: You can remove individual profiles or all profiles at once.
-* **Compatibility**: Uses standard Linux tools (`dhcpcd`, `wpa_supplicant`) without complex external dependencies.
+* **Profile creation and updates**: with the `create-profile` command, you can define SSID, password (PSK), and priority (metric) for each interface. The lower the interface metric, the higher its priority.
+* **Centralized management**: keeps all configurations organized in the user profile directory (`~/.config/nipm`), which is only accessible with root permissions for security reasons.
+* **Multiple interface support**: dynamically switches between active interfaces, always maintaining the highest-priority connection.
+* **Continuous monitoring**: background mode (`-b`) checks interface availability and automatically reconnects in case of failure. You can also define the interval for each check using the (`-s`) option followed by the value in seconds.
+* **Easy profile removal**: remove individual profiles or all profiles at once.
+* **Compatibility**: uses standard Linux tools (`dhcpcd`, `wpa_supplicant`) without complex external dependencies.
 
 ---
 
@@ -34,7 +37,7 @@ NIPM prioritizes network interfaces based on user-defined metrics and automatica
 # Clone the repository
 git clone https://github.com/gusprojects008/nipm.git
 cd nipm
-````
+```
 
 Make sure you have Python 3.13+, `dhcpcd`, and `wpa_supplicant` installed.
 
@@ -61,7 +64,7 @@ sudo python3 nipm.py remove-profiles
 # Start connection with interface monitoring (background)
 sudo python3 nipm.py start -b
 
-# Start connection without monitoring (single mode)
+# Start connection without monitoring (single-run mode)
 sudo python3 nipm.py start
 ```
 
@@ -80,10 +83,10 @@ sudo python3 nipm.py start
 * Main profile file: `nipm-config.json`
 * Generated configuration files for each interface:
 
-* `wpa-supplicant-<ifname>.conf`
-* `dhcpcd-<ifname>.conf`
+  * `wpa-supplicant-<ifname>.conf`
+  * `dhcpcd-<ifname>.conf`
 
-All files and directories are created with restricted permissions (`740`) for added security.
+All files and directories are created with restricted permissions (`740`) for enhanced security.
 
 ---
 
@@ -92,19 +95,13 @@ All files and directories are created with restricted permissions (`740`) for ad
 * Python 3.13+
 * `dhcpcd`
 * `wpa_supplicant`
-* Administrator permissions (sudo)
+* Administrator privileges (sudo)
 
-#### Ensure that no daemons or network services are running (e.g., iwd or NetworkManager) before running the program.
+#### Make sure no other network daemons or services are running (e.g., iwd or NetworkManager) before executing the program.
 
 ---
 
-## Strengths
-
-* Reliability and automation for multiple wireless or Ethernet interfaces.
-
-* Flexibility for use in monitoring mode or single-run mode.
-* Native integration with standard Linux tools, without external dependencies.
-* Easy maintenance of network profiles on multi-interface systems.
+For more details, see [docs](./docs/nipm.txt)
 
 ---
 
