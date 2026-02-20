@@ -2,6 +2,12 @@
 
 NIPM (Network Interface Profile Manager) is a CLI tool for Linux that allows you to manage network interfaces and their connections (Wi-Fi or Ethernet) through profiles.
 It supports the creation, maintenance, and automatic switching between network profiles in a dynamic and secure way, without relying on a resident daemon, providing greater control and flexibility over interfaces.
+A personal script developed with minimalist environments in mind, and for users who don't want to manually configure network service configuration files, such as: wpa_supplicant and dhcpcd.
+And don't want daemons that forcibly control network interfaces that regularly change mode (managed -> monitor).
+Low CPU and memory usage.
+
+> [!IMPORTANT]
+> Make sure no other network daemons or services are running (e.g., iwd or NetworkManager) before executing the program.
 
 ---
 
@@ -96,15 +102,3 @@ All files and directories are created with restricted permissions (`740`) for en
 * `dhcpcd`
 * `wpa_supplicant`
 * Administrator privileges (sudo)
-
-#### Make sure no other network daemons or services are running (e.g., iwd or NetworkManager) before executing the program.
-
----
-
-For more details, see [docs](./docs/nipm.txt)
-
----
-
-## License
-
-MIT License – see [LICENSE](LICENSE) for details.
