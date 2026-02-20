@@ -1,9 +1,6 @@
-Melhorar logs e colorir eles.
-Poderia utilizar mensagem de PING para o serviço wpa_supplicant, e esperar PONG para confirmar que ele estáa ativo.
-
 Melhorias futuras e possíveis funcionalidades:
-Fornecer TUI simples para gerenciamento de rede. O usuário poderá editar arquivos de configurações e definir modos de interface diretamente pela TUI.
-Talvez ele poderá realizar um scan pela interface selecionada, e o resultado será exibido diretamente na TUI, e selecionar uma rede que ele quer se conectar.
+Fornecer TUI simples para gerenciamento de rede. O usuário poderá editar arquivos de configurações, definir modos de interface diretamente pela TUI, conectar a uma rede específica, ativar ou desativar interface, configurar endereços IP etc...
+Melhorar logs e colorir eles.
 
 Lembretes:
 Caso houvesse uma interface gráfica, seria necessário adapatar as funções do programa para serem assíncronas.
