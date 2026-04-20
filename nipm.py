@@ -720,7 +720,6 @@ def main():
     list_profiles_parser = subparsers.add_parser('list-profiles', help='List all saved network profiles.')
 
     remove_profiles_parser = subparsers.add_parser('remove-profile', help='Remove a specific network profile.')
-    remove_profiles_parser.add_argument('ifname', type=str, help='The interface name to remove.')
 
     remove_all_profiles_parser = subparsers.add_parser('remove-profiles', help='Remove all network profiles.')
 
@@ -749,9 +748,10 @@ def main():
         hist_ssid = HistoryManager("ssid")
         
         ifname = hist_iface.input("Network Interface Name (e.g. wlan0, enp0s3): ")
+
         if not ifname: 
             raise ValueError("Interface name cannot be empty.")
-        
+
         metric_val = hist_metric.input("Metric (default: 100): ")
         metric = int(metric_val) if metric_val else 100
         
@@ -771,12 +771,17 @@ def main():
             temp_profile = {"metric": metric}
             valid_profile = validate_interface_profile_data(CONFIG_DIR, ifname, temp_profile)
             profiles_manager.create_profile(ifname, valid_profile)
-    elif args.command == 'list-profiles':
-        profiles_manager.list_profiles()
     elif args.command == 'remove-profile':
-        profiles_manager.remove_profile(args.ifname)
+        list_interfaces()
+        hist_iface = HistoryManager("iface")
+        ifname = hist_iface.input("Network Interface Name (e.g. wlan0, enp0s3): ")
+        if not ifname: 
+            raise ValueError("Interface name cannot be empty.")
+        profiles_manager.remove_profile(ifname)
     elif args.command == 'remove-profiles':
         profiles_manager.remove_all_profiles()
+    elif args.command == 'list-profiles':
+        profiles_manager.list_profiles()
     elif args.command == 'list-interfaces':
         list_interfaces()
     else:
