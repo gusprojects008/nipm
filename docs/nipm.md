@@ -1,7 +1,7 @@
 Melhorias futuras e possíveis funcionalidades:
 Adicionar macanismo de history para auto-complete de comandos, como "create-profile" etc...
 Melhorar logs e colorir eles.
-Incluindo o modo delas).
+Incluindo o modo delas.
 
 O usuário poderá definir a metric (prioridade de interface) através da própria interface, movendo a interface para topo.
 
@@ -99,6 +99,8 @@ A nova estrutura que pensei:
 }
 
 Acho que a estrutura de entrada de cada interface irá ter que depender do tipo dela.
+
+Provavelmente irei ter adicionar no setup.sh a possibilidade do usuário poder definir o nipm como executável global, através de um alias ou algo assim.
 
 Algumas dúvidas que tenho atualmente:
 Será que é melhor ter o "hwaddr" como key principal para a entrada da interface? do que ter o nome dela como chave? se "hwaddr" for melhor (o que suspeito que é) então é só começar a gerar o arquivo nipm-config.json utilizando hwaddr como key para entrada das interfaces.
