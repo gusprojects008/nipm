@@ -23,8 +23,23 @@ VENV_PYTHON="$VENV_DIR/bin/python"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_PATH="$SCRIPT_DIR/$PROJECT_NAME$PROGRAM_EXTENSION"
 VENV_ARGCOMPLETE="$SCRIPT_DIR/$VENV_DIR/bin/register-python-argcomplete"
-AUTOCOMPLETE_LINE="eval \"\$($VENV_ARGCOMPLETE $SCRIPT_PATH)\""
-BASHRC="$HOME/.bashrc"
+
+CURRENT_SHELL=$(basename "$SHELL")
+case "$CURRENT_SHELL" in
+    bash)
+        RC_FILE="$HOME/.bashrc"
+        ;;
+    zsh)
+        RC_FILE="$HOME/.zshrc"
+        ;;
+    *)
+        RC_FILE=""
+        ;;
+esac
+
+AUTOCOMPLETE_LINE="eval \"\$($VENV_ARGCOMPLETE $WRAPPER_NAME)\""
+
+SYSTEM_DEPENDENCIES=("python3" "iw" "dhcpcd" "wpa_supplicant" "pkill" "ip")
 
 print_step() {
     echo
@@ -88,7 +103,7 @@ print_separator_equals() {
 
 print_step "Checking required system dependencies..."
 
-for pkg in python3 iw dhcpcd wpa_supplicant pkill ip; do
+for pkg in "${SYSTEM_DEPENDENCIES[@]}"; do
     if ! command -v "$pkg" >/dev/null 2>&1; then
         print_error "Missing dependency: $pkg"
     fi
@@ -112,11 +127,8 @@ python -m pip install --upgrade pip >/dev/null 2>&1
 
 print_step "Installing dependencies..."
 
-if [ -f "requirements.txt" ]; then
-    pip install -r requirements.txt >/dev/null 2>&1
-    print_ok "Dependencies installed."
-else
-    print_error "requirements.txt not found."
+if ! pip install --no-cache-dir -r requirements.txt --no-input; then
+    print_error "Failed to install dependencies"
 fi
 
 print_step "Setup completed successfully!"
@@ -141,6 +153,9 @@ read -p "Do you want to make '$WRAPPER_NAME' a system command with autocomplete?
 echo
 
 if [[ $REPLY =~ ^[Yy]$ ]]; then
+    if [ ! -f /usr/share/bash-completion/bash_completion ]; then
+        print_warning "bash-completion not found (optional)"
+    fi
 
     if [ ! -f "$VENV_ARGCOMPLETE" ]; then
         print_error_msg "argcomplete not found in venv."
@@ -164,23 +179,30 @@ exec \"$SCRIPT_DIR/$VENV_PYTHON\" \"$SCRIPT_PATH\" \"\$@\""
 
     print_step "Configuring autocomplete..."
 
-    if grep -q "nipm autocomplete" "$BASHRC"; then
-        print_warning "Autocomplete already configured in $BASHRC"
+    if [ -z "$RC_FILE" ]; then
+        print_warning "Shell '$CURRENT_SHELL' not supported for automation."
+        print_info "Manually add the following to your shell configuration file:"
+        print_command "$AUTOCOMPLETE_LINE"
     else
-        {
-            echo ""
-            echo "# nipm autocomplete"
-            echo "$AUTOCOMPLETE_LINE"
-        } >> "$BASHRC"
-        print_ok "Autocomplete added to $BASHRC"
+        if grep -q "# $WRAPPER_NAME autocomplete" "$RC_FILE"; then
+            print_warning "Autocomplete already configured in $RC_FILE"
+        else
+            {
+                echo ""
+                echo "# $WRAPPER_NAME autocomplete"
+                if [[ "$CURRENT_SHELL" == "zsh" ]]; then
+                    echo "autoload -U bashcompinit && bashcompinit"
+                fi
+                echo "$AUTOCOMPLETE_LINE"
+            } >> "$RC_FILE"
+            print_ok "Autocomplete added to $RC_FILE"
+        fi
+        print_section "To activate"
+        print_command "source $RC_FILE"
     fi
-
-    print_section "To activate"
-    print_command "source ~/.bashrc"
 
     print_section "Usage"
     print_command "$WRAPPER_NAME --help"
-    print_command "$WRAPPER_NAME scan --ifname <TAB>"
 
 else
     print_info "Skipped. You can run the script directly:"
