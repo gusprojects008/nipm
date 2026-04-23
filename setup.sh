@@ -197,12 +197,15 @@ exec \"$SCRIPT_DIR/$VENV_PYTHON\" \"$SCRIPT_PATH\" \"\$@\""
             } >> "$RC_FILE"
             print_ok "Autocomplete added to $RC_FILE"
         fi
-        print_section "To activate"
+        print_header "$RED IMPORTANT"
+        print_section "$RED To activate"
         print_command "source $RC_FILE"
+        echo
     fi
 
     print_section "Usage"
     print_command "$WRAPPER_NAME --help"
+    echo
 
 else
     print_info "Skipped. You can run the script directly:"

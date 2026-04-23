@@ -4,3 +4,4 @@ Pygments==2.20.0
 rich==15.0.0
 argcomplete
 cli-core @ git+https://github.com/gusprojects008/cli-core.git@v1.0.4
+#cli-core @ git+https://github.com/gusprojects008/cli-core.git@v1.0.5

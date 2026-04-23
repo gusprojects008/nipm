@@ -1,13 +1,6 @@
 #!/usr/bin/env python3
 # PYTHON_ARGCOMPLETE_OK
 
-from cli_core.deps import check_dependencies
-
-system_dependencies = ['wpa_supplicant', 'dhcpcd', 'iw', 'ip']
-module_dependencies = ['rich', 'argcomplete']
-
-check_dependencies(module_dependencies=module_dependencies, system_dependencies=system_dependencies)
-
 import os
 import socket
 import sys
@@ -23,13 +16,14 @@ import argparse
 import argcomplete
 import hashlib
 import logging
-from typing import Dict, List, Any, Tuple, Optional
 import readline
 import atexit
-from logging import FileHandler, Formatter
+from cli_core.deps import check_dependencies
 from cli_core.log import setup_logging
 from cli_core.system import check_root
 
+MODULE_DEPENDENCIES = ('rich', 'argcomplete')
+SYSTEM_DEPENDENCIES = ('wpa_supplicant', 'dhcpcd', 'iw', 'ip')
 COMMANDS = ['create-profile', 'list-profiles', 'remove-profile', 'remove-profiles', 'start', 'scan', 'list-interfaces']
 service_timeout = 30
 process_timeout = 5
@@ -132,7 +126,7 @@ def _generate_hex_psk(ssid: str, psk: str) -> str:
     logger.info(f"Generating hexadecimal PSK for {ssid} ...")
     return hashlib.pbkdf2_hmac('sha1', psk.encode('utf-8'), ssid.encode('utf-8'), 4096, 32).hex()
 
-def validate_interface_profile_data(CONFIG_DIR, ifname: str, profile_data: Dict[str, Any]) -> Dict[str, Any]:
+def validate_interface_profile_data(CONFIG_DIR, ifname: str, profile_data: dict) -> dict:
     logger.info(f"Validating profile for {ifname}...")
 
     if not ifname or not check_interface_exists(ifname):
@@ -698,6 +692,8 @@ def interfaces_completer(prefix, **kwargs):
         return []
 
 def main():
+    check_dependencies(module_dependencies=MODULE_DEPENDENCIES, system_dependencies=SYSTEM_DEPENDENCIES)
+
     parser = argparse.ArgumentParser(
         description="Network Interface Profile Manager (NIPM) - Manage network connections easily.",
         formatter_class=argparse.RawTextHelpFormatter
