@@ -2,6 +2,9 @@ Melhorias futuras e possíveis funcionalidades:
 Adicionar macanismo de history para auto-complete de comandos, como "create-profile" etc...
 Melhorar logs e colorir eles.
 Incluindo o modo delas.
+Checar se o ipv4 é fallback, se for, então realizar dhcpcd -k release.
+Substituir IFs por tabelas de dispatch.
+Utilizar as keys da tabela de dispatch, para commands de argcomplete.
 
 O usuário poderá definir a metric (prioridade de interface) através da própria interface, movendo a interface para topo.
 
