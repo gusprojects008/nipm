@@ -11,7 +11,7 @@ from core.bootstrap import init
 config = {
     "module_dependencies": ["rich", "argcomplete"],
     "system_dependencies": ["wpa_supplicant", "dhcpcd", "iw", "ip"],
-    "args": None
+    "argparse": {}
 }
 
 def parse_args():
@@ -69,17 +69,17 @@ def parse_args():
     subparsers.add_parser("list-interfaces", help="List available network interfaces.")
 
     argcomplete.autocomplete(parser)
-    return parser, parser.parse_args()
 
+    return parser
 
 def main():
-    parser, args = parse_args()
-    config["args"] = args
+    parser = parse_args()
+    config["argparse"]["parser"] = parser
+    config["argparse"]["args"] = parser.parse_args()
     result = init(config)
     operations = result.operations
     logger = getLogger(__name__)
-    operations.dispatch(args)
-
+    operations.dispatch()
 
 if __name__ == "__main__":
     main()

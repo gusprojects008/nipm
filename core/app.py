@@ -431,7 +431,11 @@ class Operations:
     def __init__(self, context):
         self.ctx = context
 
-        self._dispatch = {
+        self.profiles_manager = ProfilesManager(self.ctx.config_dir, self.ctx.config_file_path)
+        self.wpa_manager = WPAProcessManager()
+        self.dhcpcd_manager = DHCPCDProcessManager()
+
+        self.dispatch_table = {
             "start": lambda args: self.start(
                 background=args.background,
                 sleep_time=args.sleep,
@@ -441,14 +445,15 @@ class Operations:
                 output_filename=args.output,
             ),
             "create-profile": lambda args: self.create_profile(),
-            "remove-profile": lambda args: self.ctx.profiles_manager.remove_profile(args.ifname),
-            "remove-profiles": lambda args: self.ctx.profiles_manager.remove_all_profiles(),
-            "list-profiles": lambda args: self.ctx.profiles_manager.list_profiles(),
+            "remove-profile": lambda args: self.profiles_manager.remove_profile(args.ifname),
+            "remove-profiles": lambda args: self.profiles_manager.remove_all_profiles(),
+            "list-profiles": lambda args: self.profiles_manager.list_profiles(),
             "list-interfaces": lambda args: self.list_interfaces(),
         }
 
-    def dispatch(self, args):
-        handler = self._dispatch.get(args.command)
+    def dispatch(self):
+        args = self.ctx.config.get("argparse").get("args")
+        handler = self.dispatch_table.get(args.command)
         if not handler:
             raise ValueError(f"Unknown command: {args.command}")
         return handler(args)
