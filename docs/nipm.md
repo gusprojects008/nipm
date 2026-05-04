@@ -1,12 +1,6 @@
-Melhorias futuras e possíveis funcionalidades:
-Adicionar macanismo de history para auto-complete de comandos, como "create-profile" etc...
-Melhorar logs e colorir eles.
-Incluindo o modo delas.
-Checar se o ipv4 é fallback, se for, então realizar dhcpcd -k release.
-Substituir IFs por tabelas de dispatch.
-Utilizar as keys da tabela de dispatch, para commands de argcomplete.
-
-O usuário poderá definir a metric (prioridade de interface) através da própria interface, movendo a interface para topo.
+## Melhorias
+* Auto-complete de comando e interfaces.
+* Arquitetura melhorada, escalabilidade maior, explicação detalhada em cli-core/templates/python.
 
 Funcionalidades:
 O usuário poderá editar, excluir ou criar os arquivos de configurações de interfaces, através da TUI.
@@ -110,4 +104,3 @@ Será que é melhor ter o "hwaddr" como key principal para a entrada da interfac
 Vou ter que aplicar mecanismo de metric para profiles? e para as entradas dentro do dict de wpa_supplicant?
 
 Interface TUI:
-
