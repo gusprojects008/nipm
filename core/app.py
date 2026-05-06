@@ -14,8 +14,8 @@ from core.common.cli import HistoryManager
 
 logger = getLogger(__name__)
 
-WPA_SUPPLICANT_TIMEOUT = 20
-DHCPCD_TIMEOUT = 15
+WPA_SUPPLICANT_TIMEOUT = 30
+DHCPCD_TIMEOUT = 30
 PROCESS_TIMEOUT = 10
 
 def check_interface_exists(ifname: str) -> bool:
@@ -26,7 +26,7 @@ def check_active_interface(ifname: str) -> bool:
     logger.info(f"Checking if {ifname} is active...")
     try:
         state_path = Path(f"/sys/class/net/{ifname}/operstate")
-        return state_path.read_text().strip() in ("up", "unknown")
+        return state_path.read_text().strip() in ("up", "unknown", "dormant")
     except Exception:
         return False
 
@@ -38,7 +38,10 @@ def check_interface_ipv4(ifname: str) -> bool:
             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
             check=True, text=True
         )
-        return "inet " in result.stdout
+        for line in result.stdout.splitlines():
+            if "inet " in line and "169.254." not in line:
+                return True
+        return False
     except Exception:
         return False
 
@@ -75,19 +78,16 @@ def _set_interface_state(mode: str, ifname: str) -> bool:
         logger.info(f"Interface {ifname} is {mode}.")
         return True
     except subprocess.CalledProcessError as e:
-        logger.error(
-            f"{e.stderr.strip() if e.stderr else 'Unknown error'}"
-        )
+        logger.error(f"{e.stderr.strip() if e.stderr else 'Unknown error'}")
     except Exception as e:
         logger.error(f"error configure {ifname} to {mode} mode: {e}")
-
     return False
 
 def set_interface_down(ifname: str) -> bool:
-    _set_interface_state("down", ifname)
+    return _set_interface_state("down", ifname)
 
 def set_interface_up(ifname: str) -> bool:
-    _set_interface_state("up", ifname)
+    return _set_interface_state("up", ifname)
 
 def restart_interface(ifname: str) -> bool:
     logger.info(f"Restarting {ifname}...")
@@ -110,29 +110,22 @@ def _generate_hex_psk(ssid: str, psk: str) -> str:
         "sha1", psk.encode("utf-8"), ssid.encode("utf-8"), 4096, 32
     ).hex()
 
-
 def validate_interface_profile_data(
     config_dir: Path, ifname: str, profile_data: dict
 ) -> dict:
     logger.info(f"Validating profile for {ifname}...")
-
     hwaddr = get_mac_address(ifname) if ifname and check_interface_exists(ifname) else None
-
     metric = profile_data.get("metric", 100)
     if not isinstance(metric, int) or metric <= 0:
         raise ValueError(f"Invalid metric for {ifname}: {metric}")
-
     is_wifi = ("ssid" in profile_data and profile_data["ssid"].strip()) or is_wireless(ifname)
-
     if is_wifi:
         ssid = profile_data.get("ssid", "").strip()
         if not ssid or len(ssid) > 32:
             raise ValueError(f"SSID for {ifname} must be between 1 and 32 characters.")
-
         psk = profile_data.get("psk", "").strip()
         if not (8 <= len(psk) <= 63):
             raise ValueError(f"PSK for {ifname} must be between 8 and 63 characters.")
-
         return {
             "hwaddr": hwaddr,
             "type": "wireless",
@@ -151,21 +144,17 @@ def validate_interface_profile_data(
             "dhcpcd_conf_path": str(config_dir / f"dhcpcd-{ifname}.conf"),
         }
 
-
 def parse_config(config_dir: Path, config_file_path: Path) -> List[Tuple[str, dict]]:
     logger.info(f"Parsing config file {config_file_path}...")
-
     if not config_file_path or not config_file_path.is_file():
         logger.error(f"Configuration file not found at {config_file_path}")
         sys.exit(1)
-
     try:
         with config_file_path.open("r", encoding="utf-8") as f:
             data = json.load(f)
     except Exception as error:
         logger.error(f"Error reading JSON config: {error}")
         sys.exit(1)
-
     profiles = []
     for ifname, profile_data in data.items():
         try:
@@ -174,10 +163,8 @@ def parse_config(config_dir: Path, config_file_path: Path) -> List[Tuple[str, di
         except Exception as error:
             logger.error(f"Unexpected error adding profile for {ifname}:\n{error}")
             continue
-
     if not profiles:
         logger.error("No valid profiles found in configuration.")
-
     return profiles
 
 class WPAProcessManager:
@@ -226,13 +213,11 @@ class WPAProcessManager:
         )
         ctrl_path = f"/var/run/wpa_supplicant/{ifname}"
         local_path = f"/tmp/wpa_ctrl_{ifname}_{os.getpid()}"
-
         if os.path.exists(local_path):
             try:
                 os.unlink(local_path)
             except Exception:
                 pass
-
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
         try:
             start = time.time()
@@ -240,7 +225,6 @@ class WPAProcessManager:
                 if time.time() - start > WPA_SUPPLICANT_TIMEOUT:
                     return False
                 time.sleep(1)
-
             sock.bind(local_path)
             sock.connect(ctrl_path)
             logger.info("Sending ATTACH message to wpa_supplicant")
@@ -249,7 +233,6 @@ class WPAProcessManager:
             if "OK" not in data:
                 logger.error("wpa_supplicant service is not working")
                 return False
-
             logger.info("wpa_supplicant service working")
             sock.settimeout(WPA_SUPPLICANT_TIMEOUT)
             while True:
@@ -280,19 +263,28 @@ class DHCPCDProcessManager:
         self.stop(ifname)
         try:
             proc = subprocess.Popen(
-                ["dhcpcd", ifname, "-f", config_path],
+                ["dhcpcd", "-B", "-f", config_path, ifname],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
             )
             self.processes[ifname] = proc
             start_time = time.time()
             while True:
+                ret = proc.poll()
+                if ret is not None:
+                    self.processes.pop(ifname, None)
+                    if ret != 0:
+                        logger.error(f"dhcpcd failed with code {ret}")
+                        return False
+    
                 if check_interface_ipv4(ifname) and check_default_gateway(ifname):
                     logger.info(f"dhcpcd successfully configured {ifname}")
                     return True
+    
                 if time.time() - start_time > DHCPCD_TIMEOUT:
                     logger.error(f"Timeout waiting for DHCP lease on {ifname}")
                     self.stop(ifname)
                     return False
+    
                 time.sleep(1)
         except Exception as e:
             logger.error(f"Failed to start dhcpcd for {ifname}: {e}")
@@ -312,7 +304,6 @@ class DHCPCDProcessManager:
     def stop_all(self):
         for ifname in list(self.processes):
             self.stop(ifname)
-
 
 class ProfilesManager:
     def __init__(self, config_dir: Path, config_file_path: Path):
@@ -460,15 +451,15 @@ class Operations:
 
     def _cleanup_network_processes(self):
         logger.info("Cleaning up network processes")
-        self.ctx.dhcpcd_manager.stop_all()
-        self.ctx.wpa_manager.stop_all()
+        self.dhcpcd_manager.stop_all()
+        self.wpa_manager.stop_all()
         try:
             subprocess.run(
-                ["pkill", "-u", self.ctx.real_user, "wpa_supplicant"],
+                ["pkill", "-x", "wpa_supplicant"],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
             )
             subprocess.run(
-                ["pkill", "-u", self.ctx.real_user, "dhcpcd"],
+                ["pkill", "-x", "dhcpcd"],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
             )
         except Exception as e:
@@ -480,12 +471,12 @@ class Operations:
 
         if wireless:
             success = (
-                self.ctx.wpa_manager.start(ifname, p["wpa_supplicant_conf_path"])
-                and self.ctx.wpa_manager.wait_for_connected(ifname)
-                and self.ctx.dhcpcd_manager.start(ifname, p["dhcpcd_conf_path"])
+                self.wpa_manager.start(ifname, p["wpa_supplicant_conf_path"])
+                and self.wpa_manager.wait_for_connected(ifname)
+                and self.dhcpcd_manager.start(ifname, p["dhcpcd_conf_path"])
             )
         else:
-            success = self.ctx.dhcpcd_manager.start(ifname, p["dhcpcd_conf_path"])
+            success = self.dhcpcd_manager.start(ifname, p["dhcpcd_conf_path"])
 
         if success:
             logger.info(f"Connection successful on {ifname}!")
@@ -521,8 +512,8 @@ class Operations:
                 if best != active_ifname:
                     if active_ifname:
                         logger.info(f"Switching from {active_ifname} to {best}...")
-                        self.ctx.wpa_manager.stop(active_ifname)
-                        self.ctx.dhcpcd_manager.stop(active_ifname)
+                        self.wpa_manager.stop(active_ifname)
+                        self.dhcpcd_manager.stop(active_ifname)
                     if best:
                         current = next(p for i, p in profiles if i == best)
                         if self._connect((best, current)):
@@ -585,7 +576,7 @@ class Operations:
             self.ctx.config_dir, ifname, temp_profile
         )
 
-        self.ctx.profiles_manager.create_profile(ifname, valid_profile)
+        self.profiles_manager.create_profile(ifname, valid_profile)
 
     def scan(self, ifname: str, output_filename: Optional[str] = None):
         logger.info("In development, see https://github.com/gusprojects008/wnlpy\n")
