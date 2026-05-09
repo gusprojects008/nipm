@@ -263,7 +263,7 @@ class DHCPCDProcessManager:
         self.stop(ifname)
         try:
             proc = subprocess.Popen(
-                ["dhcpcd", "-B", "-f", config_path, ifname],
+                ["dhcpcd", "-B", "--persistent", "-f", config_path, ifname],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
             )
             self.processes[ifname] = proc
