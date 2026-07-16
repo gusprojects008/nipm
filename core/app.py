@@ -38,6 +38,7 @@ def check_interface_ipv4(ifname: str) -> bool:
             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
             check=True, text=True
         )
+        logger.debug(result)
         for line in result.stdout.splitlines():
             if "inet " in line and "169.254." not in line:
                 return True
@@ -494,8 +495,14 @@ class Operations:
         self._cleanup_network_processes()
 
         if not background:
-            ifname, profile_data = profiles[0]
-            if self._connect((ifname, profile_data)):
+            best = next(
+                (ifname for ifname, _ in profiles if check_interface_exists(ifname)),
+                None
+            )
+            current = next((p for i, p in profiles if i == best), None) if best is not None else logger.info("No interface found")
+            if not current or not best:
+                return
+            if self._connect((best, current)):
                 logger.info("Connection established. The script will now exit.")
             else:
                 logger.error("Could not establish a connection using any available profile.")

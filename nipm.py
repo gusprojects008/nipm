@@ -74,8 +74,13 @@ def parse_args():
 
 def main():
     parser = parse_args()
+    print(parser)
     config["argparse"]["parser"] = parser
-    config["argparse"]["args"] = parser.parse_args()
+    args = parser.parse_args()
+    print(args)
+    print(type(args))
+    config["argparse"]["args"] = args
+    print(config)
     result = init(config)
     operations = result.operations
     logger = getLogger(__name__)
